@@ -7,8 +7,13 @@ Module Module1
         Using conn As New SqlConnection("Data Source=(local); Initial Catalog=NorthWind; Integrated Security=SSPI")
             Dim cmd As SqlCommand = New SqlCommand("select top 2 * from orders", conn)
 
-            Dim result = OpenAndQueryAsync(conn, cmd).Result
-            Console.WriteLine("Result from async Connection: " + result)
+            Dim isTaskCompleted = OpenAndQueryAsync(conn, cmd).Wait(TimeSpan.FromSeconds(5))
+
+            If isTaskCompleted Then
+                Console.WriteLine("Connection is now open")
+            Else
+                Console.WriteLine("Timeout while connecting")
+            End If
 
             If conn.State = ConnectionState.Open Then
                 Dim reader As SqlDataReader = cmd.ExecuteReader()
@@ -21,18 +26,9 @@ Module Module1
         Console.ReadLine()
     End Sub
 
-    Async Function OpenAndQueryAsync(conn As SqlConnection, cmd As SqlCommand) As Task(Of String)
-        Dim cts As CancellationTokenSource = New CancellationTokenSource(10000)
-        Try
-            Await conn.OpenAsync(cts.Token)
-            Await cmd.ExecuteNonQueryAsync(cts.Token)
-        Catch tcex As TaskCanceledException
-            Return "Timeout"
-        Finally
-            cts.Dispose()
-        End Try
-
-        Return "Success"
+    Async Function OpenAndQueryAsync(conn As SqlConnection, cmd As SqlCommand) As Task
+        Await conn.OpenAsync()
+        Await cmd.ExecuteNonQueryAsync()
     End Function
 
 End Module
